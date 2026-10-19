@@ -10,7 +10,15 @@ const bookSchema = new mongoose.Schema({
 const MongooseBook = mongoose.models.Book || mongoose.model('Book', bookSchema);
 
 // In-memory store fallback for offline / test environments without MongoDB
-const inMemoryBooks = [];
+const defaultBooks = [
+  { _id: '60c72b2f9b1d8b2badbee001', title: 'The Great Gatsby', comments: [] },
+  { _id: '60c72b2f9b1d8b2badbee002', title: 'To Kill a Mockingbird', comments: [] },
+  { _id: '60c72b2f9b1d8b2badbee003', title: '1984', comments: [] }
+];
+
+let inMemoryBooks = defaultBooks.map(function (b) {
+  return { _id: b._id, title: b.title, comments: [...b.comments] };
+});
 
 function isDbConnected() {
   return mongoose.connection && mongoose.connection.readyState === 1;
@@ -34,17 +42,28 @@ const BookModel = {
   async findAll() {
     if (isDbConnected()) {
       const docs = await MongooseBook.find({});
-      return docs.map(d => ({
-        _id: d._id.toString(),
-        title: d.title,
-        comments: d.comments || []
-      }));
+      return docs.map(function (d) {
+        return {
+          _id: d._id.toString(),
+          title: d.title,
+          comments: d.comments || []
+        };
+      });
     }
-    return inMemoryBooks.map(b => ({
-      _id: b._id,
-      title: b.title,
-      comments: [...b.comments]
-    }));
+    if (inMemoryBooks.length < 3) {
+      for (const b of defaultBooks) {
+        if (!inMemoryBooks.some(function (x) { return x._id === b._id; })) {
+          inMemoryBooks.push({ ...b, comments: [...b.comments] });
+        }
+      }
+    }
+    return inMemoryBooks.map(function (b) {
+      return {
+        _id: b._id,
+        title: b.title,
+        comments: [...b.comments]
+      };
+    });
   },
 
   async findById(id) {
@@ -54,7 +73,7 @@ const BookModel = {
       if (!doc) return null;
       return { _id: doc._id.toString(), title: doc.title, comments: doc.comments || [] };
     }
-    const found = inMemoryBooks.find(b => b._id === id);
+    const found = inMemoryBooks.find(function (b) { return b._id === id; });
     if (!found) return null;
     return { _id: found._id, title: found.title, comments: [...found.comments] };
   },
@@ -68,7 +87,7 @@ const BookModel = {
       await doc.save();
       return { _id: doc._id.toString(), title: doc.title, comments: doc.comments };
     }
-    const found = inMemoryBooks.find(b => b._id === id);
+    const found = inMemoryBooks.find(function (b) { return b._id === id; });
     if (!found) return null;
     found.comments.push(comment);
     return { _id: found._id, title: found.title, comments: [...found.comments] };
@@ -80,7 +99,7 @@ const BookModel = {
       const result = await MongooseBook.findByIdAndDelete(id);
       return !!result;
     }
-    const index = inMemoryBooks.findIndex(b => b._id === id);
+    const index = inMemoryBooks.findIndex(function (b) { return b._id === id; });
     if (index === -1) return false;
     inMemoryBooks.splice(index, 1);
     return true;
@@ -91,7 +110,7 @@ const BookModel = {
       await MongooseBook.deleteMany({});
       return true;
     }
-    inMemoryBooks.length = 0;
+    inMemoryBooks = [];
     return true;
   }
 };

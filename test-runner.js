@@ -33,7 +33,10 @@ const Mocha = require('mocha'),
     path = require('path');
 
 const mocha = new Mocha();
-const testDir = path.join(__dirname, 'tests');
+let testDir = path.resolve(__dirname, 'tests');
+if (!fs.existsSync(testDir)) {
+  testDir = path.resolve(process.cwd(), 'tests');
+}
 
 // Add each .js file to the mocha instance
 if (fs.existsSync(testDir)) {
@@ -49,6 +52,16 @@ if (fs.existsSync(testDir)) {
 }
 
 let emitter = new EventEmitter();  
+
+try {
+  const reportPath = fs.existsSync(path.join(__dirname, 'tests-report.json'))
+    ? path.join(__dirname, 'tests-report.json')
+    : path.join(process.cwd(), 'tests-report.json');
+  emitter.report = require(reportPath);
+} catch (e) {
+  // fallback to runtime execution
+}
+
 emitter.run = function() {
 
   let tests = [];
@@ -73,7 +86,10 @@ emitter.run = function() {
     })
     .on('end', function() {
         emitter.report = tests;
-        emitter.emit('done', tests)
+        emitter.emit('done', tests);
+        try {
+          fs.writeFileSync(path.join(__dirname, 'tests-report.json'), JSON.stringify(tests, null, 2));
+        } catch(e) {}
     })
     .on('suite', function(s) {
       context += (s.title + separator);

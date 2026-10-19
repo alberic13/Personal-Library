@@ -39,7 +39,9 @@ module.exports = function (app) {
       console.log('requested');
       const serverPath = fs.existsSync(path.join(__dirname, 'server.js'))
         ? path.join(__dirname, 'server.js')
-        : path.join(__dirname, '..', 'server.js');
+        : (fs.existsSync(path.join(__dirname, '..', 'server.js'))
+          ? path.join(__dirname, '..', 'server.js')
+          : path.join(process.cwd(), 'server.js'));
       fs.readFile(serverPath, function(err, data) {
         if(err) return next(err);
         res.send(data.toString());
@@ -50,7 +52,9 @@ module.exports = function (app) {
       console.log('requested');
       const apiPath = fs.existsSync(path.join(__dirname, 'api.js'))
         ? path.join(__dirname, 'api.js')
-        : path.join(__dirname, '..', 'routes', 'api.js');
+        : (fs.existsSync(path.join(__dirname, '..', 'routes', 'api.js'))
+          ? path.join(__dirname, '..', 'routes', 'api.js')
+          : path.join(process.cwd(), 'routes', 'api.js'));
       fs.readFile(apiPath, function(err, data) {
         if(err) return next(err);
         res.type('txt').send(data.toString());
