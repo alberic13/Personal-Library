@@ -29,6 +29,7 @@
 
 const cors = require('cors');
 const fs = require('fs');
+const path = require('path');
 const runner = require('../test-runner');
 
 module.exports = function (app) {
@@ -36,7 +37,10 @@ module.exports = function (app) {
   app.route('/_api/server.js')
     .get(function(req, res, next) {
       console.log('requested');
-      fs.readFile(__dirname + '/server.js', function(err, data) {
+      const serverPath = fs.existsSync(path.join(__dirname, 'server.js'))
+        ? path.join(__dirname, 'server.js')
+        : path.join(__dirname, '..', 'server.js');
+      fs.readFile(serverPath, function(err, data) {
         if(err) return next(err);
         res.send(data.toString());
       });
@@ -44,7 +48,10 @@ module.exports = function (app) {
   app.route('/_api/routes/api.js')
     .get(function(req, res, next) {
       console.log('requested');
-      fs.readFile(__dirname + '/routes/api.js', function(err, data) {
+      const apiPath = fs.existsSync(path.join(__dirname, 'api.js'))
+        ? path.join(__dirname, 'api.js')
+        : path.join(__dirname, '..', 'routes', 'api.js');
+      fs.readFile(apiPath, function(err, data) {
         if(err) return next(err);
         res.type('txt').send(data.toString());
       });
@@ -56,6 +63,13 @@ module.exports = function (app) {
     res.json({status: 'unavailable'});
   },
   function(req, res, next){
+    if(!runner.report && process.env.NODE_ENV === 'test') {
+      try {
+        runner.run();
+      } catch (e) {
+        console.error(e);
+      }
+    }
     if(!runner.report) return next();
     res.json(testFilter(runner.report, req.query.type, req.query.n));
   },
